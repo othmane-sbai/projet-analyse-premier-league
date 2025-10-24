@@ -2,17 +2,16 @@ import pandas as pd
 import mysql.connector
 from mysql.connector import Error
 
-# --- PARAMÈTRES DE CONNEXION ---
-# MODIFIEZ CES VALEURS
+
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'otmane', # <-- Laissez les guillemets vides
+    'password': 'otmane', 
     'database': 'premier_league'
 }
 csv_file_path = r"C:\Users\DELL\Desktop\Projects\Personnel\Projet_PremierLeague\premier_league_2324.csv"
 
-# (Le reste du code est le même que dans la réponse précédente)
+
 def create_db_connection(config):
     try:
         conn = mysql.connector.connect(**config)
@@ -43,10 +42,9 @@ def get_team_mapping(conn):
     return team_mapping
 
 def import_match_data(conn, df, team_mapping):
-    """Nettoie le DataFrame et insère les données dans la table 'matches'."""
+   
     cursor = conn.cursor()
     
-    # 1. Nettoyage et renommage des colonnes
     df = df[['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG', 'FTR', 'HS', 'AS', 'HST', 'AST', 'HC', 'AC', 'HY', 'AY', 'HR', 'AR']].copy()
     df.rename(columns={
         'Date': 'match_date',
@@ -67,30 +65,30 @@ def import_match_data(conn, df, team_mapping):
         'AR': 'away_red_cards'
     }, inplace=True)
 
-    # 2. Conversion des dates
+    
     df['match_date'] = pd.to_datetime(df['match_date'], format='%d/%m/%Y').dt.date
     
-    # 3. Mapping des noms d'équipes vers les IDs
+    
     df['home_team_id'] = df['home_team_name'].map(team_mapping)
     df['away_team_id'] = df['away_team_name'].map(team_mapping)
     
-    # 4. Suppression des colonnes temporaires
+   
     df.drop(columns=['home_team_name', 'away_team_name'], inplace=True)
     
-    # Remplacer les NaN potentiels par None pour SQL
+    
     df = df.where(pd.notnull(df), None)
 
-    # 5. Préparation pour l'insertion (MÉTHODE CORRIGÉE)
+    
     tuples = [tuple(x) for x in df.to_numpy()]
     
-    # On crée la chaîne de placeholders de manière plus sûre
+   
     num_cols = len(df.columns)
     placeholders = ', '.join(['%s'] * num_cols)
     
     cols = ','.join(list(df.columns))
     sql = f"INSERT INTO matches ({cols}) VALUES ({placeholders})"
     
-    # 6. Insertion des données avec executemany (plus efficace)
+   
     try:
         cursor.executemany(sql, tuples)
         conn.commit()
