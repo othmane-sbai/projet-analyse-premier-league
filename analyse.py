@@ -2,17 +2,16 @@ import pandas as pd
 import mysql.connector
 from mysql.connector import Error
 
-# --- PARAMÈTRES DE CONNEXION ---
-# MODIFIEZ CES VALEURS AVEC VOS IDENTIFIANTS
+
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'otmane', # <-- METTRE VOTRE MOT DE PASSE ICI
+    'password': 'otmane', 
     'database': 'premier_league'
 }
 
 def create_db_connection(config):
-    """Crée une connexion à la base de données."""
+    
     try:
         conn = mysql.connector.connect(**config)
         print("Connexion à MySQL réussie pour l'analyse.")
@@ -22,7 +21,7 @@ def create_db_connection(config):
         return None
 
 def calculate_points(row):
-    """Calcule les points pour un match donné pour une équipe."""
+    
     if row['result'] == 'H':
         return 3 if row['is_home'] else 0
     elif row['result'] == 'A':
@@ -31,10 +30,9 @@ def calculate_points(row):
         return 1
 
 def analyze_season_data(conn):
-    """Récupère et analyse les données de la saison."""
     
-    # 1. Récupérer les données avec une jointure pour avoir les noms des équipes
-    query = """
+    
+    
     SELECT 
         m.match_date, t1.name AS home_team, t2.name AS away_team,
         m.home_goals, m.away_goals, m.result
@@ -46,9 +44,7 @@ def analyze_season_data(conn):
     df = pd.read_sql(query, conn)
     print("Données récupérées depuis MySQL.")
 
-    # --- ANALYSES ---
-    
-    # 2. Classement général
+
     home_df = df[['home_team', 'home_goals', 'away_goals', 'result']].copy()
     home_df.rename(columns={'home_team': 'team', 'home_goals': 'goals_for', 'away_goals': 'goals_against'}, inplace=True)
     home_df['is_home'] = True
@@ -79,11 +75,10 @@ def analyze_season_data(conn):
     ranking.index += 1
     ranking.rename(columns={'team': 'Équipe', 'played': 'Joués', 'won': 'Gagnés', 'drawn': 'Nuls', 'lost': 'Perdus', 'goals_for': 'Buts Marqués', 'goals_against': 'Buts Encaissés', 'points': 'Points', 'goal_difference': 'Diff. Buts'}, inplace=True)
 
-    # 3. Moyenne de buts par match
+    
     avg_goals = (df['home_goals'] + df['away_goals']).mean()
 
-    # 4. Performances à domicile et à l'extérieur (LOGIQUE CORRIGÉE)
-    # On calcule les points pour chaque match à domicile/extérieur AVANT de grouper
+   
     home_df['home_points'] = home_df['result'].map({'H': 3, 'D': 1, 'A': 0})
     away_df['away_points'] = away_df['result'].map({'A': 3, 'D': 1, 'H': 0})
 
@@ -103,14 +98,13 @@ def analyze_season_data(conn):
     performances.rename(columns={'team': 'Équipe'}, inplace=True)
 
     return ranking, avg_goals, performances
-# --- SCRIPT PRINCIPAL ---
+
 if __name__ == "__main__":
     connection = create_db_connection(db_config)
     if connection:
         ranking_df, avg_goals_score, performances_df = analyze_season_data(connection)
         connection.close()
 
-        # Export vers Excel
         output_file = "analyse_premier_league_2324.xlsx"
         with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
             ranking_df.to_excel(writer, sheet_name='Classement', index=True)
