@@ -24,7 +24,7 @@ L'objectif était de créer un pipeline de données fonctionnel pour extraire, s
 
 \- \*\*Langage :\*\* Python 3.13
 
-\- \*\*Bibliothèques Python :\*\* Pandas, mysql-connector-python
+\- \*\*Bibliothèques Python :\*\* Pandas, mysql-connector-python, openpyxl
 
 \- \*\*Base de Données :\*\* MySQL
 
@@ -44,6 +44,10 @@ Projet\_PremierLeague/
 
 ├── premier\_league\_2324.csv     # Données brutes
 
+├── schema.sql                  # Création de la base et des tables MySQL
+
+├── requirements.txt            # Dépendances Python
+
 ├── import\_data.py              # Script d'importation en base de données
 
 ├── analyse.py                  # Script d'analyse des données
@@ -60,15 +64,17 @@ Projet\_PremierLeague/
 
 
 
-1\.  \*\*Collecte des données :\*\* Télécharger le fichier `E0.csv` depuis \[football-data.co.uk](https://www.football-data.co.uk/englandm.php) et le renommer `premier\_league\_2324.csv`.
+1\.  \*\*Dépendances :\*\* Installer les bibliothèques Python : `pip install -r requirements.txt`.
 
-2\.  \*\*Base de données :\*\* Créer la base et les tables MySQL en exécutant le script SQL fourni.
+2\.  \*\*Collecte des données :\*\* Télécharger le fichier `E0.csv` depuis \[football-data.co.uk](https://www.football-data.co.uk/englandm.php), le renommer `premier\_league\_2324.csv` et le placer dans le dossier du projet.
 
-3\.  \*\*Importation :\*\* Lancer le script `import\_data.py` après avoir configuré les identifiants de la base de données.
+3\.  \*\*Base de données :\*\* Créer la base et les tables MySQL en exécutant le script `schema.sql` : `mysql -u root -p < schema.sql`.
 
-4\.  \*\*Analyse :\*\* Lancer le script `analyse.py` pour générer le fichier Excel.
+4\.  \*\*Importation :\*\* Configurer les identifiants MySQL via les variables d'environnement `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD` et `MYSQL_DATABASE` (valeurs par défaut : `localhost`, `root`, vide, `premier_league`), puis lancer `python import_data.py`. Pour importer un autre fichier, passer son chemin en argument : `python import_data.py chemin/vers/premier\_league\_2324.csv`.
 
-5\.  \*\*Visualisation :\*\* Importer le fichier Excel dans Tableau pour recréer le tableau de bord.
+5\.  \*\*Analyse :\*\* Lancer le script `analyse.py` pour générer le fichier Excel.
+
+6\.  \*\*Visualisation :\*\* Importer le fichier Excel dans Tableau pour recréer le tableau de bord.
 
 
 
