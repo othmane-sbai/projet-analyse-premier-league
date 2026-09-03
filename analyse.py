@@ -1,17 +1,18 @@
+import os
+
 import pandas as pd
 import mysql.connector
 from mysql.connector import Error
 
 
 db_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'otmane', 
-    'database': 'premier_league'
+    'host': os.environ.get('MYSQL_HOST', 'localhost'),
+    'user': os.environ.get('MYSQL_USER', 'root'),
+    'password': os.environ.get('MYSQL_PASSWORD', ''),
+    'database': os.environ.get('MYSQL_DATABASE', 'premier_league')
 }
 
 def create_db_connection(config):
-    
     try:
         conn = mysql.connector.connect(**config)
         print("Connexion à MySQL réussie pour l'analyse.")
@@ -21,7 +22,6 @@ def create_db_connection(config):
         return None
 
 def calculate_points(row):
-    
     if row['result'] == 'H':
         return 3 if row['is_home'] else 0
     elif row['result'] == 'A':
@@ -30,9 +30,7 @@ def calculate_points(row):
         return 1
 
 def analyze_season_data(conn):
-    
-    
-    
+    query = """
     SELECT 
         m.match_date, t1.name AS home_team, t2.name AS away_team,
         m.home_goals, m.away_goals, m.result
@@ -44,6 +42,8 @@ def analyze_season_data(conn):
     df = pd.read_sql(query, conn)
     print("Données récupérées depuis MySQL.")
 
+    if df.empty:
+        raise RuntimeError("La table 'matches' est vide : lancez d'abord import_data.py.")
 
     home_df = df[['home_team', 'home_goals', 'away_goals', 'result']].copy()
     home_df.rename(columns={'home_team': 'team', 'home_goals': 'goals_for', 'away_goals': 'goals_against'}, inplace=True)
@@ -72,13 +72,11 @@ def analyze_season_data(conn):
     
     ranking['goal_difference'] = ranking['goals_for'] - ranking['goals_against']
     ranking = ranking.sort_values(by=['points', 'goal_difference', 'goals_for'], ascending=False).reset_index(drop=True)
-    ranking.index += 1
+    ranking.index = pd.RangeIndex(1, len(ranking) + 1)
     ranking.rename(columns={'team': 'Équipe', 'played': 'Joués', 'won': 'Gagnés', 'drawn': 'Nuls', 'lost': 'Perdus', 'goals_for': 'Buts Marqués', 'goals_against': 'Buts Encaissés', 'points': 'Points', 'goal_difference': 'Diff. Buts'}, inplace=True)
 
-    
     avg_goals = (df['home_goals'] + df['away_goals']).mean()
 
-   
     home_df['home_points'] = home_df['result'].map({'H': 3, 'D': 1, 'A': 0})
     away_df['away_points'] = away_df['result'].map({'A': 3, 'D': 1, 'H': 0})
 
@@ -99,20 +97,30 @@ def analyze_season_data(conn):
 
     return ranking, avg_goals, performances
 
-if __name__ == "__main__":
+def write_excel_output(ranking_df, performances_df, avg_goals_score, output_file):
+    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+        ranking_df.to_excel(writer, sheet_name='Classement', index=True, index_label='Rang')
+        performances_df.to_excel(writer, sheet_name='Performances Domicile-Ext', index=False)
+        
+        stats_df = pd.DataFrame({'Statistique': ['Moyenne de buts par match'], 'Valeur': [f"{avg_goals_score:.2f}"]})
+        stats_df.to_excel(writer, sheet_name='Statistiques Générales', index=False)
+
+def main():
     connection = create_db_connection(db_config)
-    if connection:
+    if connection is None:
+        raise SystemExit("Analyse annulée : impossible de se connecter à MySQL.")
+
+    try:
         ranking_df, avg_goals_score, performances_df = analyze_season_data(connection)
+    finally:
         connection.close()
 
-        output_file = "analyse_premier_league_2324.xlsx"
-        with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-            ranking_df.to_excel(writer, sheet_name='Classement', index=True)
-            performances_df.to_excel(writer, sheet_name='Performances Domicile-Ext', index=False)
-            
-            stats_df = pd.DataFrame({'Statistique': ['Moyenne de buts par match'], 'Valeur': [f"{avg_goals_score:.2f}"]})
-            stats_df.to_excel(writer, sheet_name='Statistiques Générales', index=False)
-        
-        print(f"\nAnalyse terminée. Fichier Excel '{output_file}' créé avec succès.")
-        print("\nAperçu du classement :")
-        print(ranking_df.head(10))
+    output_file = "analyse_premier_league_2324.xlsx"
+    write_excel_output(ranking_df, performances_df, avg_goals_score, output_file)
+    
+    print(f"\nAnalyse terminée. Fichier Excel '{output_file}' créé avec succès.")
+    print("\nAperçu du classement :")
+    print(ranking_df.head(10))
+
+if __name__ == "__main__":
+    main()

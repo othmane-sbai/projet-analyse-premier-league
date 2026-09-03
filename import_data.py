@@ -1,15 +1,19 @@
+import argparse
+import os
+import sys
+
 import pandas as pd
 import mysql.connector
 from mysql.connector import Error
 
 
 db_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'otmane', 
-    'database': 'premier_league'
+    'host': os.environ.get('MYSQL_HOST', 'localhost'),
+    'user': os.environ.get('MYSQL_USER', 'root'),
+    'password': os.environ.get('MYSQL_PASSWORD', ''),
+    'database': os.environ.get('MYSQL_DATABASE', 'premier_league')
 }
-csv_file_path = r"C:\Users\DELL\Desktop\Projects\Personnel\Projet_PremierLeague\premier_league_2324.csv"
+DEFAULT_CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'premier_league_2324.csv')
 
 
 def create_db_connection(config):
@@ -97,19 +101,40 @@ def import_match_data(conn, df, team_mapping):
         print(f"Erreur lors de l'insertion des matchs: {e}")
         conn.rollback()
 
-        
-if __name__ == "__main__":
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Importe le fichier CSV de la Premier League 2023/24 dans MySQL."
+    )
+    parser.add_argument(
+        'csv_path',
+        nargs='?',
+        default=DEFAULT_CSV_PATH,
+        help=f"Chemin du fichier CSV à importer (défaut : {DEFAULT_CSV_PATH})",
+    )
+    args = parser.parse_args(argv)
+
     try:
-        df = pd.read_csv(csv_file_path)
-        print("Fichier CSV chargé avec succès.")
+        df = pd.read_csv(args.csv_path)
     except FileNotFoundError:
-        print(f"Erreur : Le fichier '{csv_file_path}' n'a pas été trouvé.")
-        exit()
+        print(f"Erreur : le fichier '{args.csv_path}' est introuvable.", file=sys.stderr)
+        print("Téléchargez E0.csv et indiquez son chemin : python import_data.py <chemin_du_fichier>", file=sys.stderr)
+        return 1
+
+    print("Fichier CSV chargé avec succès.")
 
     connection = create_db_connection(db_config)
-    if connection:
+    if connection is None:
+        print("Importation annulée : impossible de se connecter à MySQL.", file=sys.stderr)
+        return 1
+
+    try:
         populate_teams_table(connection, df)
         team_map = get_team_mapping(connection)
         import_match_data(connection, df, team_map)
+    finally:
         connection.close()
-        print("Connexion à MySQL fermée.")
+    print("Connexion à MySQL fermée.")
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
